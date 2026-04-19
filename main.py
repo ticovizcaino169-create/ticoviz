@@ -1,6 +1,6 @@
 """
 TicoViz Corporation v2 — Launcher Principal (Railway)
-Inicia tanto el Bot de Telegram como el Portal Web simultaneamente.
+Inicia Bot de Telegram + Portal Web + Auto Processor.
 Railway asigna PORT dinamicamente via variable de entorno.
 """
 import sys
@@ -32,6 +32,16 @@ def start_web_server():
         raise
 
 
+def start_auto_processor():
+    """Inicia el auto-processor en un thread separado."""
+    try:
+        from auto_processor import start_auto_processor as _start
+        _start()
+        logger.info("Auto-processor lanzado")
+    except Exception as e:
+        logger.error(f"Error en Auto-processor: {e}")
+
+
 def start_telegram_bot():
     """Inicia el bot de Telegram en el thread principal."""
     try:
@@ -52,7 +62,7 @@ def start_telegram_bot():
 
 
 def main():
-    """Punto de entrada principal. Lanza web + bot."""
+    """Punto de entrada principal. Lanza web + auto-processor + bot."""
     logger.info("=" * 50)
     logger.info("TicoViz Corporation v2 — Iniciando Sistema")
     logger.info(f"PORT: {os.getenv('PORT', 'no definido (usando default)')}")
@@ -63,6 +73,9 @@ def main():
     web_thread = threading.Thread(target=start_web_server, daemon=True)
     web_thread.start()
     logger.info("Portal Web lanzado en thread separado")
+
+    # Auto-processor en thread separado
+    start_auto_processor()
 
     # Bot de Telegram en thread principal (bloqueante)
     start_telegram_bot()

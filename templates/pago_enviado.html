@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Pago Enviado — TicoViz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .success-icon {
+        font-size: 4rem; text-align: center; margin-bottom: 1rem;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    .success-header { text-align: center; margin-bottom: 2rem; }
+    .success-header h2 { margin-bottom: 0.5rem; }
+    .info-box {
+        background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+        border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0;
+    }
+    .info-box h4 { margin-bottom: 0.5rem; color: #60a5fa; }
+    .info-box p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+    .info-box ul { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0 1.2rem; padding: 0; }
+    .info-box li { margin-bottom: 0.3rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="padding-top:3rem">
+    <div class="card">
+        <div class="success-icon">&#x1F4E8;</div>
+        <div class="success-header">
+            <h2>Pago Registrado</h2>
+            <p style="color:var(--muted)">Pedido #{{ order.id }} &mdash; Token: <code style="color:var(--accent)">{{ order.token }}</code></p>
+        </div>
+
+        <div class="alert alert-success">
+            &#x2705; Tu confirmacion de pago ha sido registrada. Estamos verificando la transaccion.
+        </div>
+
+        <div class="info-box">
+            <h4>&#x23F3; Que sigue?</h4>
+            <ul>
+                <li>Verificaremos tu transaccion manualmente (puede tomar hasta 24h).</li>
+                <li>Una vez confirmado el pago, podras descargar todos los archivos.</li>
+                <li>Te notificaremos por tu contacto registrado cuando este listo.</li>
+            </ul>
+        </div>
+
+        <div class="info-box">
+            <h4>&#x1F4CB; Datos de tu pedido</h4>
+            <p style="margin-top:0.5rem">
+                <strong>Token:</strong> {{ order.token }}<br>
+                <strong>Estado:</strong> <span class="badge badge-warning">Esperando confirmacion</span>
+            </p>
+        </div>
+
+        <div style="text-align:center; margin-top:2rem">
+            <a href="/pedido/{{ order.token }}" class="btn btn-primary">&#x1F50D; Ver Estado del Pedido</a>
+        </div>
+    </div>
+
+    <p style="text-align:center;margin-top:1.5rem;color:var(--muted);font-size:0.85rem">
+        Consulta el estado en cualquier momento en: <code>/pedido/{{ order.token }}</code>
+    </p>
+</div>
+{% endblock %}

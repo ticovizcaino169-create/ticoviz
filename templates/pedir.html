@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Hacer Pedido — TicoViz{% endblock %}
+{% block content %}
+<div class="container-sm" style="padding-top:3rem">
+    <div class="card">
+        <h2 style="margin-bottom:0.5rem">&#x1F4E6; Hacer Pedido</h2>
+        <p style="color:var(--muted);margin-bottom:2rem">Describe lo que necesitas y te lo creamos con IA.</p>
+
+        {% if errores %}
+        <div class="alert alert-error">
+            {% for e in errores %}<div>&#x26A0; {{ e }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/pedir">
+            <div class="form-group">
+                <label>Tu nombre</label>
+                <input type="text" name="nombre" class="form-control" placeholder="Ej: Juan Perez" value="{{ form.nombre if form else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Contacto (email o Telegram)</label>
+                <input type="text" name="contacto" class="form-control" placeholder="Ej: @tu_usuario o email@ejemplo.com" value="{{ form.contacto if form else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <select name="categoria" class="form-control">
+                    {% for cat_id, cat_name in categorias %}
+                    <option value="{{ cat_id }}" {% if form and form.categoria == cat_id %}selected{% endif %}>{{ cat_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Describe tu producto (minimo 10 caracteres)</label>
+                <textarea name="descripcion" class="form-control" rows="6" placeholder="Describe exactamente lo que necesitas. Incluye funcionalidades, tecnologias preferidas, publico objetivo, etc. Mientras mas detalle, mejor resultado." required>{{ form.descripcion if form else '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Notas adicionales (opcional)</label>
+                <textarea name="notas" class="form-control" rows="3" placeholder="Referencias, colores, estilo, urgencia, etc.">{{ form.notas if form else '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">&#x1F680; Enviar Pedido</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

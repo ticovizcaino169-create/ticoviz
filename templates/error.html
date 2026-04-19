@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }} — TicoViz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-page {
+        text-align: center; padding: 4rem 1rem;
+        min-height: 60vh; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+    }
+    .error-code {
+        font-size: 6rem; font-weight: 800; line-height: 1;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent; margin-bottom: 1rem;
+    }
+    .error-msg {
+        font-size: 1.2rem; color: var(--muted); margin-bottom: 2rem;
+        max-width: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-code">{{ code }}</div>
+    <p class="error-msg">{{ msg }}</p>
+    <a href="/" class="btn btn-primary">&#x1F3E0; Volver al Inicio</a>
+</div>
+{% endblock %}

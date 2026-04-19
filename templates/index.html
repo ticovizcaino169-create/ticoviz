@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}TicoViz Corporation — Productos Digitales con IA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
+        text-align: center; padding: 5rem 1rem 3rem;
+        background: radial-gradient(ellipse at center, rgba(233,69,96,0.08) 0%, transparent 70%);
+    }
+    .hero h1 {
+        font-size: 3rem; font-weight: 800; margin-bottom: 1rem;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .hero p { font-size: 1.2rem; color: var(--muted); max-width: 600px; margin: 0 auto 2rem; }
+
+    .services { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin: 3rem 0; }
+    .service-card { text-align: center; padding: 2rem; }
+    .service-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .service-card h3 { margin-bottom: 0.5rem; font-size: 1.1rem; }
+    .service-card p { color: var(--muted); font-size: 0.9rem; }
+
+    .how-it-works { margin: 4rem 0; }
+    .how-it-works h2 { text-align: center; font-size: 2rem; margin-bottom: 2rem; }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; }
+    .step { text-align: center; }
+    .step-number {
+        width: 50px; height: 50px; border-radius: 50%;
+        background: var(--grad); color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem; font-weight: 700;
+        margin: 0 auto 1rem;
+    }
+    .step h3 { margin-bottom: 0.5rem; }
+    .step p { color: var(--muted); font-size: 0.9rem; }
+
+    .cta-section {
+        text-align: center; padding: 4rem 1rem;
+        background: var(--bg-card); border-radius: 16px;
+        margin: 3rem 0;
+    }
+    .cta-section h2 { font-size: 1.8rem; margin-bottom: 1rem; }
+    .cta-section p { color: var(--muted); margin-bottom: 2rem; }
+
+    @media (max-width: 768px) {
+        .hero h1 { font-size: 2rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Creamos tu Producto Digital con IA</h1>
+    <p>Describe lo que necesitas. Nuestra IA lo construye: codigo, documentacion, presentacion. Todo listo para ti.</p>
+    <a href="/pedir" class="btn btn-primary">Hacer Pedido</a>
+</section>
+
+<div class="container">
+    <div class="services">
+        <div class="card service-card">
+            <div class="service-icon">&#x1F4F1;</div>
+            <h3>Aplicaciones</h3>
+            <p>Apps web y moviles funcionales con codigo limpio y documentacion profesional.</p>
+        </div>
+        <div class="card service-card">
+            <div class="service-icon">&#x1F916;</div>
+            <h3>Bots</h3>
+            <p>Bots de Telegram, Discord, WhatsApp con IA integrada y automatizacion.</p>
+        </div>
+        <div class="card service-card">
+            <div class="service-icon">&#x1F527;</div>
+            <h3>Herramientas</h3>
+            <p>Scripts, APIs, automatizaciones y herramientas de productividad a medida.</p>
+        </div>
+        <div class="card service-card">
+            <div class="service-icon">&#x1F680;</div>
+            <h3>APIs &amp; SaaS</h3>
+            <p>Backends, APIs REST, plataformas SaaS listas para produccion.</p>
+        </div>
+    </div>
+
+    <div class="how-it-works">
+        <h2>Como Funciona</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Describe</h3>
+                <p>Cuentanos que necesitas. Mientras mas detalle, mejor resultado.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Creamos</h3>
+                <p>Nuestros motores de IA generan codigo, documentacion y presentacion.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Pagas</h3>
+                <p>Paga con crypto (USDT, BTC o ETH) de forma segura y rapida.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3>Descargas</h3>
+                <p>Descarga todos los archivos: codigo fuente, PDF, presentacion, Excel.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="cta-section">
+        <h2>&#x1F4A1; Tienes una idea?</h2>
+        <p>No importa si es simple o compleja. Nuestro equipo de IA puede construirla.</p>
+        <a href="/pedir" class="btn btn-primary">&#x1F680; Empezar Ahora</a>
+    </div>
+</div>
+{% endblock %}

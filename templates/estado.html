@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ order.id }} — TicoViz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-header { text-align: center; margin-bottom: 2rem; }
+    .status-header h2 { margin-bottom: 0.5rem; }
+
+    .timeline { position: relative; padding: 1rem 0; margin: 2rem 0; }
+    .timeline::before {
+        content: ''; position: absolute; left: 20px; top: 0; bottom: 0;
+        width: 2px; background: var(--border);
+    }
+    .tl-item {
+        position: relative; padding-left: 50px; margin-bottom: 1.5rem;
+    }
+    .tl-dot {
+        position: absolute; left: 12px; top: 4px;
+        width: 18px; height: 18px; border-radius: 50%;
+        background: var(--border);
+    }
+    .tl-dot.active { background: var(--accent); box-shadow: 0 0 12px var(--glow); }
+    .tl-dot.done { background: #10b981; }
+    .tl-label { font-weight: 600; margin-bottom: 2px; }
+    .tl-desc { color: var(--muted); font-size: 0.85rem; }
+
+    .order-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    .order-detail dt { color: var(--muted); font-size: 0.85rem; }
+    .order-detail dd { margin: 0 0 1rem 0; font-weight: 600; }
+
+    .actions { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
+
+    @media (max-width: 600px) {
+        .order-detail { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="padding-top:3rem">
+    <div class="card">
+        <div class="status-header">
+            <h2>&#x1F4E6; Pedido #{{ order.id }}</h2>
+            <p style="color:var(--muted)">Token: <code style="color:var(--accent)">{{ order.token }}</code></p>
+        </div>
+
+        {% set statuses = ['recibido', 'procesando', 'listo', 'entregado'] %}
+        {% set current_idx = statuses.index(order.order_status) if order.order_status in statuses else 0 %}
+
+        <div class="timeline">
+            {% for s in statuses %}
+            <div class="tl-item">
+                <div class="tl-dot {% if loop.index0 < current_idx %}done{% elif loop.index0 == current_idx %}active{% endif %}"></div>
+                <div class="tl-label">
+                    {% if s == 'recibido' %}&#x1F4E9; Recibido
+                    {% elif s == 'procesando' %}&#x2699;&#xFE0F; Procesando
+                    {% elif s == 'listo' %}&#x2705; Listo
+                    {% elif s == 'entregado' %}&#x1F381; Entregado
+                    {% endif %}
+                </div>
+                <div class="tl-desc">
+                    {% if s == 'recibido' %}Tu pedido ha sido recibido y sera revisado pronto.
+                    {% elif s == 'procesando' %}Nuestros motores de IA estan creando tu producto.
+                    {% elif s == 'listo' %}Tu producto esta listo. Procede al pago para descargarlo.
+                    {% elif s == 'entregado' %}Producto entregado. Gracias por tu compra!
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="order-detail">
+            <div>
+                <dt>Categoria</dt>
+                <dd>{{ order.categoria }}</dd>
+            </div>
+            <div>
+                <dt>Estado</dt>
+                <dd>
+                    {% if order.order_status == 'recibido' %}<span class="badge badge-info">Recibido</span>
+                    {% elif order.order_status == 'procesando' %}<span class="badge badge-warning">Procesando</span>
+                    {% elif order.order_status == 'listo' %}<span class="badge badge-success">Listo</span>
+                    {% elif order.order_status == 'entregado' %}<span class="badge badge-success">Entregado</span>
+                    {% elif order.order_status == 'cancelado' %}<span class="badge badge-error">Cancelado</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div>
+                <dt>Precio</dt>
+                <dd>{% if order.precio > 0 %}${{ "%.2f"|format(order.precio) }} USD{% else %}Pendiente{% endif %}</dd>
+            </div>
+            <div>
+                <dt>Pago</dt>
+                <dd>
+                    {% if order.payment_status == 'pendiente' %}<span class="badge badge-warning">Pendiente</span>
+                    {% elif order.payment_status == 'esperando_confirmacion' %}<span class="badge badge-info">Verificando</span>
+                    {% elif order.payment_status == 'pagado' %}<span class="badge badge-success">Pagado</span>
+                    {% endif %}
+                </dd>
+            </div>
+        </div>
+
+        <div style="margin-top:1rem">
+            <dt style="color:var(--muted);font-size:0.85rem">Descripcion</dt>
+            <dd style="margin:0.5rem 0 0 0">{{ order.descripcion[:500] }}</dd>
+        </div>
+
+        {% if order.notas %}
+        <div style="margin-top:1rem">
+            <dt style="color:var(--muted);font-size:0.85rem">Notas</dt>
+            <dd style="margin:0.5rem 0 0 0">{{ order.notas[:300] }}</dd>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            {% if order.order_status == 'listo' and order.precio > 0 and order.payment_status == 'pendiente' %}
+                <a href="/pedido/{{ order.token }}/pagar" class="btn btn-primary">&#x1F4B3; Pagar Ahora</a>
+            {% endif %}
+            {% if order.payment_status == 'pagado' %}
+                <a href="/pedido/{{ order.token }}/descargar" class="btn btn-primary">&#x1F4E5; Descargar Archivos</a>
+            {% endif %}
+            <a href="/" class="btn btn-outline">&#x1F3E0; Inicio</a>
+        </div>
+    </div>
+
+    <p style="text-align:center;margin-top:1.5rem;color:var(--muted);font-size:0.85rem">
+        Guarda este enlace para consultar el estado en cualquier momento.
+    </p>
+</div>
+{% endblock %}

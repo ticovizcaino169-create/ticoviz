@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Descargar — Pedido #{{ order.id }} — TicoViz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dl-header { text-align: center; margin-bottom: 2rem; }
+    .dl-header h2 { margin-bottom: 0.5rem; }
+
+    .file-list { list-style: none; padding: 0; margin: 2rem 0; }
+    .file-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1rem 1.2rem; margin-bottom: 0.75rem;
+        background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+        border-radius: 10px; transition: all 0.3s;
+    }
+    .file-item:hover { background: rgba(255,255,255,0.06); border-color: var(--accent); }
+    .file-name {
+        display: flex; align-items: center; gap: 0.75rem;
+        font-weight: 600; word-break: break-all;
+    }
+    .file-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .dl-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 18px; border-radius: 8px; font-size: 0.85rem;
+        font-weight: 600; text-decoration: none; flex-shrink: 0;
+        background: var(--grad); color: #fff; transition: all 0.3s;
+    }
+    .dl-btn:hover { opacity: 0.85; text-decoration: none; }
+
+    .order-summary {
+        background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15);
+        border-radius: 10px; padding: 1.2rem; margin-bottom: 2rem;
+    }
+    .order-summary dt { color: var(--muted); font-size: 0.8rem; margin-bottom: 2px; }
+    .order-summary dd { margin: 0 0 0.8rem 0; font-weight: 600; }
+    .order-summary dd:last-child { margin-bottom: 0; }
+
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="padding-top:3rem">
+    <div class="card">
+        <div class="dl-header">
+            <h2>&#x1F4E5; Descargar Archivos</h2>
+            <p style="color:var(--muted)">Pedido #{{ order.id }}</p>
+        </div>
+
+        <div class="order-summary">
+            <dl style="margin:0">
+                <dt>Producto</dt>
+                <dd>{{ order.descripcion[:120] }}{% if order.descripcion|length > 120 %}...{% endif %}</dd>
+                <dt>Estado</dt>
+                <dd><span class="badge badge-success">Pagado</span></dd>
+            </dl>
+        </div>
+
+        {% if archivos and archivos|length > 0 %}
+        <ul class="file-list">
+            {% for archivo in archivos %}
+            <li class="file-item">
+                <span class="file-name">
+                    <span class="file-icon">
+                        {% if archivo.endswith('.pdf') %}&#x1F4C4;
+                        {% elif archivo.endswith('.py') %}&#x1F40D;
+                        {% elif archivo.endswith('.zip') %}&#x1F4E6;
+                        {% elif archivo.endswith('.pptx') %}&#x1F4CA;
+                        {% elif archivo.endswith('.xlsx') %}&#x1F4C8;
+                        {% elif archivo.endswith('.txt') %}&#x1F4DD;
+                        {% else %}&#x1F4CE;
+                        {% endif %}
+                    </span>
+                    {{ archivo }}
+                </span>
+                <a href="/pedido/{{ order.token }}/descargar/{{ archivo }}" class="dl-btn">
+                    &#x2B07; Descargar
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#x1F4ED;</div>
+            <p>No hay archivos disponibles para descargar todavia.</p>
+            <p style="font-size:0.85rem">Si crees que esto es un error, contacta al soporte.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <p style="text-align:center;margin-top:1.5rem;color:var(--muted);font-size:0.85rem">
+        <a href="/pedido/{{ order.token }}">&#x2B05; Volver al estado del pedido</a>
+    </p>
+</div>
+{% endblock %}

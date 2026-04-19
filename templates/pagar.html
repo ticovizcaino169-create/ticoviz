@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Pagar Pedido #{{ order.id }} — TicoViz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pay-header { text-align: center; margin-bottom: 2rem; }
+    .pay-header h2 { margin-bottom: 0.5rem; }
+    .price-big {
+        font-size: 2.5rem; font-weight: 800;
+        background: var(--grad); -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 1rem 0;
+    }
+
+    .crypto-tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    .crypto-tab {
+        flex: 1; min-width: 100px; padding: 12px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 8px; text-align: center;
+        cursor: pointer; transition: all 0.3s;
+        color: var(--muted); font-weight: 600; font-size: 0.9rem;
+        text-decoration: none;
+    }
+    .crypto-tab:hover { background: var(--bg-card-hover); text-decoration: none; }
+    .crypto-tab.active {
+        border-color: var(--accent); color: var(--accent);
+        background: rgba(233,69,96,0.08);
+    }
+
+    .pay-info { margin: 2rem 0; }
+    .pay-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1rem 0; border-bottom: 1px solid var(--border);
+    }
+    .pay-row:last-child { border-bottom: none; }
+    .pay-label { color: var(--muted); font-size: 0.9rem; }
+    .pay-value {
+        font-weight: 600; word-break: break-all; text-align: right;
+        max-width: 60%; font-size: 0.95rem;
+    }
+
+    .qr-section { text-align: center; margin: 2rem 0; }
+    .qr-section img {
+        background: #fff; padding: 12px; border-radius: 12px;
+        max-width: 200px;
+    }
+
+    .copy-btn {
+        background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+        color: var(--text); padding: 4px 12px; border-radius: 6px;
+        cursor: pointer; font-size: 0.8rem; margin-left: 8px;
+        transition: all 0.3s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.15); }
+
+    .confirm-form { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+    .confirm-form h3 { margin-bottom: 1rem; }
+
+    .warning-box {
+        background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+        border-radius: 8px; padding: 1rem; margin: 1.5rem 0;
+        font-size: 0.85rem; color: #fbbf24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="padding-top:3rem">
+    <div class="card">
+        <div class="pay-header">
+            <h2>&#x1F4B3; Pagar Pedido #{{ order.id }}</h2>
+            <div class="price-big">${{ "%.2f"|format(order.precio) }} USD</div>
+        </div>
+
+        <!-- Crypto selector tabs -->
+        <div class="crypto-tabs">
+            {% for c in cryptos %}
+            <a href="/pedido/{{ order.token }}/pagar?crypto={{ c }}"
+               class="crypto-tab {% if c == crypto_actual %}active{% endif %}">
+                {% if c == 'USDT_TRC20' %}&#x1F4B5; USDT
+                {% elif c == 'BTC' %}&#x1FA99; BTC
+                {% elif c == 'ETH' %}&#x1F4A0; ETH
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if pago.configured %}
+        <!-- Payment info -->
+        <div class="pay-info">
+            <div class="pay-row">
+                <span class="pay-label">Red</span>
+                <span class="pay-value">{{ pago.network }}</span>
+            </div>
+            <div class="pay-row">
+                <span class="pay-label">Monto</span>
+                <span class="pay-value" style="color:var(--accent);font-size:1.1rem">
+                    {{ pago.amount_display }}
+                    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ pago.amount }}');this.textContent='Copiado!'">Copiar</button>
+                </span>
+            </div>
+            <div class="pay-row">
+                <span class="pay-label">Direccion</span>
+                <span class="pay-value" style="font-size:0.8rem">
+                    {{ pago.address }}
+                    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ pago.address }}');this.textContent='Copiado!'">Copiar</button>
+                </span>
+            </div>
+        </div>
+
+        <!-- QR Code -->
+        <div class="qr-section">
+            <img src="{{ pago.qr_url }}" alt="QR Code de pago" loading="lazy">
+            <p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">Escanea para obtener la direccion</p>
+        </div>
+
+        <div class="warning-box">
+            &#x26A0; <strong>Importante:</strong> Asegurate de enviar por la red <strong>{{ pago.network }}</strong>.
+            Enviar por otra red puede resultar en perdida de fondos.
+        </div>
+
+        <!-- Confirm payment form -->
+        <div class="confirm-form">
+            <h3>&#x2705; Ya pagaste? Confirma aqui</h3>
+            <form method="POST" action="/pedido/{{ order.token }}/confirmar_pago">
+                <input type="hidden" name="crypto_tipo" value="{{ crypto_actual }}">
+                <div class="form-group">
+                    <label>Hash de la transaccion (TX Hash / TXID)</label>
+                    <input type="text" name="tx_hash" class="form-control"
+                           placeholder="Pega aqui el hash/ID de tu transaccion" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%">
+                    &#x1F4E8; Confirmar Pago
+                </button>
+            </form>
+        </div>
+
+        {% else %}
+        <div class="alert alert-warning">
+            &#x26A0; La wallet para {{ pago.coin }} no esta configurada. Selecciona otra criptomoneda.
+        </div>
+        {% endif %}
+    </div>
+
+    <p style="text-align:center;margin-top:1.5rem;color:var(--muted);font-size:0.85rem">
+        <a href="/pedido/{{ order.token }}">&#x2B05; Volver al estado del pedido</a>
+    </p>
+</div>
+{% endblock %}

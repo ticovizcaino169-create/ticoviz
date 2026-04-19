@@ -1,0 +1,14 @@
+# TicoViz Railway
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+products/
+ticoviz.log
+.DS_Store
+*.egg-info/
+dist/
+build/
+venv/
+.venv/

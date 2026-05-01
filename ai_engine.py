@@ -17,12 +17,17 @@ Funciones:
 import json
 import re
 import logging
+import asyncio
 import aiohttp
 from config import (
     GEMINI_API_KEY,
     GEMINI_MODEL,
     GEMINI_API_URL,
 )
+
+# Retry config
+MAX_RETRIES = 3
+BASE_DELAY = 2  # segundos
 
 logger = logging.getLogger("ticoviz.ai_engine")
 
@@ -81,7 +86,10 @@ def extract_json(text):
 # ============================================================
 
 async def _call_gemini(prompt, temperature=0.7, max_tokens=8192):
-    """Llama a Gemini Flash API."""
+    """
+    Llama a Gemini Flash API con retry + exponential backoff.
+    Reintenta automaticamente en errores 429 (rate limit) y 503 (overloaded).
+    """
     url = f"{GEMINI_API_URL}/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -91,31 +99,53 @@ async def _call_gemini(prompt, temperature=0.7, max_tokens=8192):
         },
     }
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=120)) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    logger.error(f"Gemini API error {resp.status}: {error_text[:500]}")
-                    return {"error": f"Gemini API error: {resp.status}", "_motor": "GEMINI", "_tokens": 0}
+    last_error = None
 
-                data = await resp.json()
-                candidates = data.get("candidates", [])
-                if not candidates:
-                    return {"error": "Gemini: sin candidates", "_motor": "GEMINI", "_tokens": 0}
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=120)) as resp:
 
-                content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                tokens_meta = data.get("usageMetadata", {})
-                total_tokens = tokens_meta.get("totalTokenCount", 0)
+                    # Rate limit o server overloaded — reintentar con backoff
+                    if resp.status in (429, 503):
+                        delay = BASE_DELAY * (2 ** (attempt - 1))  # 2s, 4s, 8s
+                        logger.warning(f"Gemini {resp.status} — reintento {attempt}/{MAX_RETRIES} en {delay}s...")
+                        last_error = f"Gemini API error: {resp.status}"
+                        await asyncio.sleep(delay)
+                        continue
 
-                return {"_raw": content, "_motor": "GEMINI", "_tokens": total_tokens}
+                    if resp.status != 200:
+                        error_text = await resp.text()
+                        logger.error(f"Gemini API error {resp.status}: {error_text[:500]}")
+                        return {"error": f"Gemini API error: {resp.status}", "_motor": "GEMINI", "_tokens": 0}
 
-    except aiohttp.ClientError as e:
-        logger.error(f"Gemini connection error: {e}")
-        return {"error": f"Connection error: {e}", "_motor": "GEMINI", "_tokens": 0}
-    except Exception as e:
-        logger.error(f"Gemini unexpected error: {e}")
-        return {"error": str(e), "_motor": "GEMINI", "_tokens": 0}
+                    data = await resp.json()
+                    candidates = data.get("candidates", [])
+                    if not candidates:
+                        return {"error": "Gemini: sin candidates", "_motor": "GEMINI", "_tokens": 0}
+
+                    content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    tokens_meta = data.get("usageMetadata", {})
+                    total_tokens = tokens_meta.get("totalTokenCount", 0)
+
+                    if attempt > 1:
+                        logger.info(f"Gemini exito en intento #{attempt}")
+
+                    return {"_raw": content, "_motor": "GEMINI", "_tokens": total_tokens}
+
+        except aiohttp.ClientError as e:
+            delay = BASE_DELAY * (2 ** (attempt - 1))
+            logger.warning(f"Gemini connection error (intento {attempt}/{MAX_RETRIES}): {e} — retry en {delay}s")
+            last_error = f"Connection error: {e}"
+            await asyncio.sleep(delay)
+            continue
+        except Exception as e:
+            logger.error(f"Gemini unexpected error: {e}")
+            return {"error": str(e), "_motor": "GEMINI", "_tokens": 0}
+
+    # Agotados todos los reintentos
+    logger.error(f"Gemini: agotados {MAX_RETRIES} reintentos. Ultimo error: {last_error}")
+    return {"error": last_error or "Gemini: max retries exceeded", "_motor": "GEMINI", "_tokens": 0}
 
 
 async def _call_llm(messages=None, prompt=None, temperature=0.7, max_tokens=4096):

@@ -1,16 +1,17 @@
 """
 TicoViz Corporation v2 — AI Engine
-Motores de IA: Llama 3.1 (Groq) + Gemini Flash (Google)
+Motor unificado: Gemini Flash (Google)
+Groq deshabilitado — todo pasa por Gemini
 
 Funciones:
-  - analizar_idea        (LLAMA)  → Analisis profundo de idea
-  - generar_codigo        (GEMINI) → Codigo funcional
-  - calcular_precio_optimo(LLAMA)  → Precio de mercado
-  - generar_descripcion_producto (GEMINI) → Descripcion larga
-  - generar_pitch_venta   (LLAMA)  → Mensaje de venta
-  - generar_seguimiento   (LLAMA)  → Follow-up de venta
-  - chat_libre            (LLAMA)  → Chat abierto
-  - extract_json          (util)   → Parser robusto de JSON desde LLM
+  - analizar_idea         → Analisis profundo de idea
+  - generar_codigo        → Codigo funcional
+  - calcular_precio_optimo→ Precio de mercado
+  - generar_descripcion_producto → Descripcion larga
+  - generar_pitch_venta   → Mensaje de venta
+  - generar_seguimiento   → Follow-up de venta
+  - chat_libre            → Chat abierto
+  - extract_json          → Parser robusto de JSON desde LLM
 """
 
 import json
@@ -18,9 +19,6 @@ import re
 import logging
 import aiohttp
 from config import (
-    GROQ_API_KEY,
-    GROQ_MODEL,
-    GROQ_API_URL,
     GEMINI_API_KEY,
     GEMINI_MODEL,
     GEMINI_API_URL,
@@ -59,7 +57,7 @@ def extract_json(text):
     if start != -1 and end != -1 and end > start:
         try:
             result = json.loads(cleaned[start:end + 1])
-            logger.info(f"[AI Parser] JSON extracted after cleanup from: {text[:100]}...")
+            logger.info(f"[AI Parser] JSON extraido con cleanup de: {text[:100]}...")
             return result
         except json.JSONDecodeError:
             pass
@@ -70,53 +68,17 @@ def extract_json(text):
     if start != -1 and end != -1 and end > start:
         try:
             result = json.loads(cleaned[start:end + 1])
-            logger.info(f"[AI Parser] JSON array extracted after cleanup from: {text[:100]}...")
+            logger.info(f"[AI Parser] JSON array extraido con cleanup de: {text[:100]}...")
             return result
         except json.JSONDecodeError:
             pass
 
-    raise ValueError(f"No valid JSON found in AI response: {text[:300]}")
+    raise ValueError(f"No se encontro JSON valido en respuesta IA: {text[:300]}")
 
 
 # ============================================================
-# LLAMADAS A APIs
+# LLAMADA A GEMINI (MOTOR UNICO)
 # ============================================================
-
-async def _call_groq(messages, temperature=0.7, max_tokens=4096):
-    """Llama a Groq API (Llama 3.1) — formato OpenAI compatible."""
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(GROQ_API_URL, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=120)) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    logger.error(f"Groq API error {resp.status}: {error_text[:500]}")
-                    return {"error": f"Groq API error: {resp.status}", "_motor": "LLAMA", "_tokens": 0}
-
-                data = await resp.json()
-                content = data["choices"][0]["message"]["content"]
-                tokens = data.get("usage", {})
-                total_tokens = tokens.get("total_tokens", 0)
-
-                return {"_raw": content, "_motor": "LLAMA", "_tokens": total_tokens}
-
-    except aiohttp.ClientError as e:
-        logger.error(f"Groq connection error: {e}")
-        return {"error": f"Connection error: {e}", "_motor": "LLAMA", "_tokens": 0}
-    except Exception as e:
-        logger.error(f"Groq unexpected error: {e}")
-        return {"error": str(e), "_motor": "LLAMA", "_tokens": 0}
-
 
 async def _call_gemini(prompt, temperature=0.7, max_tokens=8192):
     """Llama a Gemini Flash API."""
@@ -140,7 +102,7 @@ async def _call_gemini(prompt, temperature=0.7, max_tokens=8192):
                 data = await resp.json()
                 candidates = data.get("candidates", [])
                 if not candidates:
-                    return {"error": "Gemini: no candidates returned", "_motor": "GEMINI", "_tokens": 0}
+                    return {"error": "Gemini: sin candidates", "_motor": "GEMINI", "_tokens": 0}
 
                 content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
                 tokens_meta = data.get("usageMetadata", {})
@@ -156,13 +118,40 @@ async def _call_gemini(prompt, temperature=0.7, max_tokens=8192):
         return {"error": str(e), "_motor": "GEMINI", "_tokens": 0}
 
 
+async def _call_llm(messages=None, prompt=None, temperature=0.7, max_tokens=4096):
+    """
+    Llamada unificada al LLM.
+    Acepta messages (formato OpenAI) o prompt (string).
+    Todo pasa por Gemini Flash.
+    """
+    if prompt:
+        final_prompt = prompt
+    elif messages:
+        # Convertir messages (OpenAI format) a prompt plano para Gemini
+        parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                parts.append(f"INSTRUCCIONES DEL SISTEMA:\n{content}")
+            elif role == "user":
+                parts.append(f"USUARIO:\n{content}")
+            elif role == "assistant":
+                parts.append(f"ASISTENTE:\n{content}")
+        final_prompt = "\n\n".join(parts)
+    else:
+        return {"error": "Sin prompt ni messages", "_motor": "GEMINI", "_tokens": 0}
+
+    return await _call_gemini(final_prompt, temperature, max_tokens)
+
+
 # ============================================================
 # FUNCIONES PRINCIPALES
 # ============================================================
 
 async def analizar_idea(idea: str, contexto_previo: str = None) -> dict:
     """
-    Analiza una idea de producto digital con Llama 3.1.
+    Analiza una idea de producto digital con Gemini Flash.
     Retorna dict con: nombre, descripcion, precio_sugerido, categoria,
     tecnologias, funcionalidades, _motor, _tokens.
     """
@@ -199,7 +188,7 @@ async def analizar_idea(idea: str, contexto_previo: str = None) -> dict:
         },
     ]
 
-    result = await _call_groq(messages, temperature=0.4)
+    result = await _call_llm(messages=messages, temperature=0.4)
 
     if "error" in result:
         return result
@@ -211,7 +200,7 @@ async def analizar_idea(idea: str, contexto_previo: str = None) -> dict:
         return parsed
     except (ValueError, KeyError) as e:
         logger.error(f"analizar_idea parse error: {e}")
-        return {"error": f"No se pudo parsear JSON: {e}", "_motor": "LLAMA", "_tokens": result.get("_tokens", 0)}
+        return {"error": f"No se pudo parsear JSON: {e}", "_motor": "GEMINI", "_tokens": result.get("_tokens", 0)}
 
 
 async def generar_codigo(analisis: dict) -> str:
@@ -256,7 +245,7 @@ async def generar_codigo(analisis: dict) -> str:
 
 async def calcular_precio_optimo(analisis: dict) -> dict:
     """
-    Calcula precio optimo de mercado con Llama 3.1.
+    Calcula precio optimo de mercado con Gemini Flash.
     Retorna dict con: precio_recomendado, justificacion, rango_min, rango_max, _tokens.
     """
     nombre = analisis.get("nombre", "Producto")
@@ -294,7 +283,7 @@ async def calcular_precio_optimo(analisis: dict) -> dict:
         },
     ]
 
-    result = await _call_groq(messages, temperature=0.3)
+    result = await _call_llm(messages=messages, temperature=0.3)
 
     if "error" in result:
         return {"precio_recomendado": precio_sugerido, "_tokens": 0, **result}
@@ -306,7 +295,7 @@ async def calcular_precio_optimo(analisis: dict) -> dict:
         return parsed
     except (ValueError, KeyError) as e:
         logger.error(f"calcular_precio parse error: {e}")
-        return {"precio_recomendado": precio_sugerido, "_tokens": result.get("_tokens", 0), "_motor": "LLAMA"}
+        return {"precio_recomendado": precio_sugerido, "_tokens": result.get("_tokens", 0), "_motor": "GEMINI"}
 
 
 async def generar_descripcion_producto(analisis: dict) -> str:
@@ -344,7 +333,7 @@ async def generar_pitch_venta(producto_nombre: str, producto_descripcion: str,
                                lead_necesidad: str, lead_plataforma: str,
                                precio: float) -> dict:
     """
-    Genera pitch de venta personalizado con Llama 3.1.
+    Genera pitch de venta personalizado con Gemini Flash.
     Retorna dict con: mensaje, asunto, _tokens.
     """
     messages = [
@@ -375,7 +364,7 @@ async def generar_pitch_venta(producto_nombre: str, producto_descripcion: str,
         },
     ]
 
-    result = await _call_groq(messages, temperature=0.6)
+    result = await _call_llm(messages=messages, temperature=0.6)
 
     if "error" in result:
         return {"mensaje": f"Hola, tenemos {producto_nombre} por ${precio:.2f}.", "asunto": producto_nombre, **result}
@@ -391,14 +380,14 @@ async def generar_pitch_venta(producto_nombre: str, producto_descripcion: str,
             "mensaje": f"Hola, tenemos {producto_nombre} por ${precio:.2f}.",
             "asunto": producto_nombre,
             "_tokens": result.get("_tokens", 0),
-            "_motor": "LLAMA",
+            "_motor": "GEMINI",
         }
 
 
 async def generar_seguimiento(producto_nombre: str, mensaje_anterior: str,
                                 respuesta_lead: str, numero_seguimiento: int) -> dict:
     """
-    Genera mensaje de seguimiento para una venta con Llama 3.1.
+    Genera mensaje de seguimiento para una venta con Gemini Flash.
     Retorna dict con: mensaje, _tokens.
     """
     messages = [
@@ -426,7 +415,7 @@ async def generar_seguimiento(producto_nombre: str, mensaje_anterior: str,
         },
     ]
 
-    result = await _call_groq(messages, temperature=0.6)
+    result = await _call_llm(messages=messages, temperature=0.6)
 
     if "error" in result:
         return {"mensaje": f"Hola, queria hacer seguimiento sobre {producto_nombre}.", **result}
@@ -441,14 +430,14 @@ async def generar_seguimiento(producto_nombre: str, mensaje_anterior: str,
         return {
             "mensaje": f"Hola, queria hacer seguimiento sobre {producto_nombre}.",
             "_tokens": result.get("_tokens", 0),
-            "_motor": "LLAMA",
+            "_motor": "GEMINI",
         }
 
 
 async def chat_libre(mensaje: str) -> dict:
     """
-    Chat libre con la IA (Llama 3.1).
-    Retorna dict con: text, _motor, _tokens.
+    Chat libre con la IA (Gemini Flash).
+    Retorna dict con: text, respuesta, _motor, _tokens.
     """
     messages = [
         {
@@ -466,10 +455,10 @@ async def chat_libre(mensaje: str) -> dict:
         },
     ]
 
-    result = await _call_groq(messages, temperature=0.7)
+    result = await _call_llm(messages=messages, temperature=0.7)
 
     if "error" in result:
-        return {"text": f"Error: {result['error']}", "_motor": "LLAMA", "_tokens": 0}
+        return {"text": f"Error: {result['error']}", "respuesta": f"Error: {result['error']}", "_motor": "GEMINI", "_tokens": 0}
 
     return {
         "text": result.get("_raw", "Sin respuesta"),
